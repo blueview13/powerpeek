@@ -37,6 +37,11 @@ struct BatteryReading: Equatable {
         return "Battery \(percentage) percent, \(statusText.lowercased())\(time)"
     }
 
+    var hoverDescription: String {
+        guard hasBattery else { return statusText }
+        return "\(percentage)% - \(isCharging ? "Charging" : "Not charging")"
+    }
+
     var symbolName: String {
         if !hasBattery { return "battery.0" }
         if isCharging { return "battery.100.bolt" }
@@ -125,6 +130,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let store = BatteryStore()
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
+    private var hoverWindow: NSWindow?
+    private var hoverTimer: Timer?
+    private var isHoveringStatusItem = false
     private var settingsWindowController: NSWindowController?
     private var sleepObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
@@ -145,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        hoverTimer?.invalidate()
         if let sleepObserver { NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver) }
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         if let preferencesObserver { NotificationCenter.default.removeObserver(preferencesObserver) }
@@ -156,6 +165,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.action = #selector(togglePopover)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         statusItem.button?.imagePosition = .imageLeading
+        hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.updateHoverState() }
+        }
         store.objectWillChange.sink { [weak self] in
             Task { @MainActor in self?.updateStatusItem() }
         }.store(in: &cancellables)
@@ -226,9 +238,87 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         button.contentTintColor = reading.displayColor
         button.imageScaling = .scaleProportionallyDown
-        button.toolTip = reading.accessibilityDescription
+        button.toolTip = nil
         button.setAccessibilityLabel(reading.accessibilityDescription)
         button.setAccessibilityValue("\(reading.percentage) percent")
+    }
+
+    private func updateHoverState() {
+        guard let button = statusItem.button, let buttonWindow = button.window else { return }
+        let buttonRect = button.convert(button.bounds, to: nil)
+        let screenRect = buttonWindow.convertToScreen(buttonRect)
+        let isHovering = screenRect.contains(NSEvent.mouseLocation)
+
+        if isHovering && !isHoveringStatusItem {
+            isHoveringStatusItem = true
+            showHoverWindow()
+        } else if !isHovering && isHoveringStatusItem {
+            isHoveringStatusItem = false
+            hideHoverWindow()
+        } else if isHovering && hoverWindow == nil {
+            showHoverWindow()
+        }
+    }
+
+    private func showHoverWindow() {
+        guard let button = statusItem.button,
+              let buttonWindow = button.window else { return }
+
+        let label = NSTextField(labelWithString: store.reading.hoverDescription)
+        label.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        label.textColor = .labelColor
+        label.alignment = .center
+        label.sizeToFit()
+
+        let horizontalPadding: CGFloat = 12
+        let verticalPadding: CGFloat = 7
+        let windowSize = NSSize(
+            width: label.fittingSize.width + horizontalPadding * 2,
+            height: label.fittingSize.height + verticalPadding * 2
+        )
+        let panel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: windowSize),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.level = .statusBar
+        panel.ignoresMouseEvents = true
+        panel.isReleasedWhenClosed = false
+
+        let contentView = NSView(frame: NSRect(origin: .zero, size: windowSize))
+        contentView.wantsLayer = true
+        contentView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        contentView.layer?.cornerRadius = 6
+        contentView.layer?.borderWidth = 1
+        contentView.layer?.borderColor = NSColor.separatorColor.cgColor
+        label.frame = NSRect(
+            x: horizontalPadding,
+            y: verticalPadding,
+            width: windowSize.width - horizontalPadding * 2,
+            height: windowSize.height - verticalPadding * 2
+        )
+        contentView.addSubview(label)
+        panel.contentView = contentView
+
+        let buttonRect = button.convert(button.bounds, to: nil)
+        let screenRect = buttonWindow.convertToScreen(buttonRect)
+        let origin = NSPoint(
+            x: screenRect.midX - windowSize.width / 2,
+            y: screenRect.minY - windowSize.height - 8
+        )
+        panel.setFrameOrigin(origin)
+        hoverWindow?.orderOut(nil)
+        hoverWindow = panel
+        panel.orderFrontRegardless()
+    }
+
+    private func hideHoverWindow() {
+        hoverWindow?.orderOut(nil)
+        hoverWindow = nil
     }
 
     @objc private func togglePopover() {
