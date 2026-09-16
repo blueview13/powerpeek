@@ -4,7 +4,8 @@
 
 PowerPeek is a lightweight macOS menu bar utility that provides a clearer, more prominent display of your Mac's battery percentage and charging status.
 
-![PowerPeek](powerpeek.png)
+<img width="1536" height="1024" alt="powerpeek" src="https://github.com/user-attachments/assets/0873be88-2421-4a42-b9a7-baaa9a4557c8" />
+
 
 ## See Your Battery Clearly
 
