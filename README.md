@@ -18,3 +18,9 @@ If you use Homebrew:
 brew install --cask blueview13/powerpeek/powerpeek
 
 The initial implementation refreshes periodically and when the Mac wakes. The menu bar item displays both the icon and percentage by default. The app bundle includes a PowerPeek icon suitable for the DMG and Applications folder.
+
+### Important
+
+PowerPeek is currently distributed outside the Mac App Store and is
+not Apple notarised. macOS may therefore display a security warning
+when you first open the application.
