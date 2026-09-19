@@ -8,13 +8,13 @@ PowerPeek is an accessible macOS menu bar battery display. It shows the current 
 - SwiftUI battery detail popover
 - Battery percentage and color-coded SF Symbols battery indicator
 - Green at 56-100%, amber at 21-55%, and red at 0-20%
-- 25% larger high-contrast menu bar and popover display
+- 25% larger menu bar and popover display
 - Charging, full, discharging, and unavailable states
 - Local IOKit power-source readings
 - Sleep/wake refresh handling
 - VoiceOver labels and accessibility values
 - Light Mode and Dark Mode support
-- High-contrast preference
+- Light, Normal, and Bold percentage weight preference
 - Swift Package Manager project targeting macOS 13+
 
 ## Requirements

@@ -15,6 +15,133 @@ struct BatteryBarMain {
     }
 }
 
+enum PercentageFontWeight: String, CaseIterable, Identifiable {
+    case light
+    case normal
+    case bold
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .light: return "Light"
+        case .normal: return "Normal"
+        case .bold: return "Bold"
+        }
+    }
+
+    var font: NSFont {
+        switch self {
+        case .light: return NSFont.systemFont(ofSize: 14, weight: .light)
+        case .normal: return NSFont.systemFont(ofSize: 14, weight: .regular)
+        case .bold: return NSFont.systemFont(ofSize: 14, weight: .bold)
+        }
+    }
+}
+
+enum BatteryIconStyle: String, CaseIterable, Identifiable {
+    case `default`
+    case tahoe
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .default: return "Default"
+        case .tahoe: return "Mac OS Tahoe"
+        }
+    }
+}
+
+func customBatteryImage(for reading: BatteryReading, size: CGFloat, style: BatteryIconStyle) -> NSImage? {
+    switch style {
+    case .default:
+        let symbolConfiguration = NSImage.SymbolConfiguration(
+            pointSize: 18,
+            weight: .bold,
+            scale: .medium
+        )
+        let paletteConfiguration = NSImage.SymbolConfiguration(
+            paletteColors: [reading.displayColor, reading.isCharging ? .systemGreen : reading.displayColor]
+        )
+        return NSImage(
+            systemSymbolName: reading.symbolName,
+            accessibilityDescription: reading.accessibilityDescription
+        )?.withSymbolConfiguration(symbolConfiguration.applying(paletteConfiguration))
+
+    case .tahoe:
+        let imageWidth = max(size * 1.45, 20)
+        let imageHeight = max(size * 0.78, 13)
+        let image = NSImage(size: NSSize(width: imageWidth, height: imageHeight), flipped: false) { rect in
+            let outlineColor = NSColor(
+                named: "BatteryIconOutline"
+            ) ?? (UserDefaults.standard.string(forKey: "menuBarTextColor") == "white" ? .white : .black)
+            let fillColor = reading.isCharging ? NSColor.systemGreen : reading.displayColor
+            let outerPadding: CGFloat = 1.5
+            let capWidth: CGFloat = 3.0
+            let capHeight: CGFloat = max(5.2, rect.height * 0.47)
+            let bodyWidth = rect.width - capWidth - outerPadding * 2.2
+            let bodyHeight = rect.height - outerPadding * 2.0
+            let bodyRect = NSRect(
+                x: outerPadding,
+                y: outerPadding,
+                width: bodyWidth,
+                height: bodyHeight
+            )
+            let capRect = NSRect(
+                x: rect.maxX - capWidth - outerPadding * 0.8,
+                y: (rect.height - capHeight) / 2.0,
+                width: capWidth,
+                height: capHeight
+            )
+            let bodyPath = NSBezierPath(roundedRect: bodyRect, xRadius: 2.4, yRadius: 2.4)
+            let capPath = NSBezierPath(roundedRect: capRect, xRadius: 1.3, yRadius: 1.3)
+
+            outlineColor.setStroke()
+            bodyPath.lineWidth = 1.15
+            bodyPath.stroke()
+
+            let fillRatio = max(0, min(1.0, CGFloat(reading.percentage) / 100.0))
+            let fillWidth = max(1.2, (bodyRect.width - 2.2) * fillRatio)
+            let fillRect = NSRect(
+                x: bodyRect.minX + 1.1,
+                y: bodyRect.minY + 1.0,
+                width: fillWidth,
+                height: bodyRect.height - 2.0
+            )
+            if fillRect.width > 0.8 {
+                let fillPath = NSBezierPath(roundedRect: fillRect, xRadius: 1.7, yRadius: 1.7)
+                fillColor.setFill()
+                fillPath.fill()
+            }
+
+            outlineColor.setFill()
+            capPath.fill()
+
+            if reading.isCharging {
+                let boltPath = NSBezierPath()
+                let centerX = rect.midX - 0.2
+                let centerY = rect.midY + 0.6
+                boltPath.move(to: NSPoint(x: centerX - 2.2, y: centerY - 3.6))
+                boltPath.line(to: NSPoint(x: centerX + 1.0, y: centerY - 3.6))
+                boltPath.line(to: NSPoint(x: centerX + 1.0, y: centerY - 0.7))
+                boltPath.line(to: NSPoint(x: centerX + 3.8, y: centerY - 0.7))
+                boltPath.line(to: NSPoint(x: centerX - 0.6, y: centerY + 4.4))
+                boltPath.line(to: NSPoint(x: centerX - 0.6, y: centerY + 0.9))
+                boltPath.line(to: NSPoint(x: centerX - 2.9, y: centerY + 0.9))
+                boltPath.close()
+                NSColor.white.setFill()
+                boltPath.fill()
+            }
+
+            return true
+        }
+        image.isTemplate = false
+        image.size = NSSize(width: imageWidth, height: imageHeight)
+        return image
+    }
+}
+
 struct BatteryReading: Equatable {
     var percentage: Int = 0
     var isCharging = false
@@ -143,7 +270,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "showPercentage": true,
             "showIcon": true,
             "menuBarTextColor": "black",
-            "highContrast": false,
+            "batteryIconStyle": BatteryIconStyle.default.rawValue,
+            "percentageFontWeight": PercentageFontWeight.normal.rawValue,
             "lowBatteryThreshold": 20.0
         ])
         configureStatusItem()
@@ -213,26 +341,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let showIcon = defaults.bool(forKey: "showIcon")
         let showPercentage = defaults.bool(forKey: "showPercentage")
         let menuBarTextColor = defaults.string(forKey: "menuBarTextColor") == "white" ? NSColor.white : NSColor.black
-        let highContrast = defaults.bool(forKey: "highContrast")
-        let symbolConfiguration = NSImage.SymbolConfiguration(
-            pointSize: highContrast ? 20 : 18,
-            weight: .bold,
-            scale: .medium
-        )
-        let paletteConfiguration = NSImage.SymbolConfiguration(
-            paletteColors: [reading.displayColor, reading.isCharging ? .systemGreen : reading.displayColor]
-        )
-        button.image = showIcon
-            ? NSImage(
-                systemSymbolName: reading.symbolName,
-                accessibilityDescription: reading.accessibilityDescription
-            )?.withSymbolConfiguration(symbolConfiguration.applying(paletteConfiguration))
-            : nil
+        let batteryIconStyle = BatteryIconStyle(rawValue: defaults.string(forKey: "batteryIconStyle") ?? "") ?? .default
+        let percentageFontWeight = PercentageFontWeight(
+            rawValue: defaults.string(forKey: "percentageFontWeight") ?? ""
+        ) ?? .normal
+
+        button.image = showIcon ? customBatteryImage(for: reading, size: 18.5, style: batteryIconStyle) : nil
         let title = showPercentage ? "\(reading.percentage)%" : ""
         button.attributedTitle = NSAttributedString(
             string: title,
             attributes: [
-                .font: NSFont.systemFont(ofSize: highContrast ? 15 : 14, weight: .bold),
+                .font: percentageFontWeight.font,
                 .foregroundColor: menuBarTextColor
             ]
         )
@@ -369,16 +488,29 @@ struct BatteryPopoverView: View {
 
     var body: some View {
         let reading = store.reading
+        let batteryIconStyle = BatteryIconStyle(
+            rawValue: UserDefaults.standard.string(forKey: "batteryIconStyle") ?? ""
+        ) ?? .default
+
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 16) {
-                Image(systemName: reading.symbolName)
-                    .symbolRenderingMode(reading.isCharging ? .palette : .hierarchical)
-                    .font(.system(size: 65, weight: .bold))
-                    .foregroundStyle(
-                        Color(nsColor: reading.displayColor),
-                        Color(nsColor: reading.isCharging ? .systemGreen : reading.displayColor)
-                    )
-                    .accessibilityHidden(true)
+                Group {
+                    if batteryIconStyle == .default {
+                        Image(systemName: reading.symbolName)
+                            .symbolRenderingMode(reading.isCharging ? .palette : .hierarchical)
+                            .font(.system(size: 65, weight: .bold))
+                            .foregroundStyle(
+                                Color(nsColor: reading.displayColor),
+                                Color(nsColor: reading.isCharging ? .systemGreen : reading.displayColor)
+                            )
+                    } else {
+                        Image(nsImage: customBatteryImage(for: reading, size: 70, style: .tahoe) ?? NSImage())
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 70, height: 70)
+                    }
+                }
+                .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(reading.percentage)%")
@@ -485,20 +617,30 @@ struct SettingsView: View {
     @AppStorage("showPercentage") private var showPercentage = true
     @AppStorage("showIcon") private var showIcon = true
     @AppStorage("menuBarTextColor") private var menuBarTextColor = "black"
-    @AppStorage("highContrast") private var highContrast = false
+    @AppStorage("batteryIconStyle") private var batteryIconStyle = BatteryIconStyle.default.rawValue
+    @AppStorage("percentageFontWeight") private var percentageFontWeight = PercentageFontWeight.normal.rawValue
     @AppStorage("lowBatteryThreshold") private var lowBatteryThreshold = 20.0
     @AppStorage("launchAtLogin") private var launchAtLogin = false
 
     var body: some View {
         Form {
             Section("Menu bar") {
+                Picker("Battery Icon", selection: $batteryIconStyle) {
+                    ForEach(BatteryIconStyle.allCases) { style in
+                        Text(style.label).tag(style.rawValue)
+                    }
+                }
                 Toggle("Show battery icon", isOn: $showIcon)
                 Toggle("Show percentage", isOn: $showPercentage)
                 Picker("Battery text color", selection: $menuBarTextColor) {
                     Text("Black").tag("black")
                     Text("White").tag("white")
                 }
-                Toggle("High-contrast display", isOn: $highContrast)
+                Picker("Text Weight", selection: $percentageFontWeight) {
+                    ForEach(PercentageFontWeight.allCases) { weight in
+                        Text(weight.label).tag(weight.rawValue)
+                    }
+                }
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { enabled in
                         setLaunchAtLogin(enabled)
