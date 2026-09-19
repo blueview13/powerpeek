@@ -1,8 +1,12 @@
 # PowerPeek
 
-PowerPeek is an accessible macOS menu bar battery display. It shows the current battery percentage alongside a visual battery icon, with a larger detail popover for easier reading.
+### A clearer way to see your Mac's battery status.
 
-## Current implementation
+PowerPeek is a lightweight macOS menu bar utility that provides a clearer, more prominent display of your Mac's battery percentage and charging status.
+
+<img width="1536" height="1024" alt="PowerPeek app" src="https://github.com/user-attachments/assets/0873be88-2421-4a42-b9a7-baaa9a4557c8" />
+
+## Features
 
 - Native Swift/AppKit menu bar application
 - SwiftUI battery detail popover
@@ -17,40 +21,60 @@ PowerPeek is an accessible macOS menu bar battery display. It shows the current 
 - Light, Normal, and Bold percentage weight preference
 - Swift Package Manager project targeting macOS 13+
 
+## See Your Battery Clearly
+
+macOS provides battery information in the menu bar, but the battery percentage can be easy to overlook.
+
+PowerPeek gives you a clearer view of your battery level, making it easier to see how much charge remains at a glance.
+
+## Download
+
+### DMG Installer
+
+Download the latest PowerPeek DMG directly from the GitHub Releases page:
+
+**[Download PowerPeek 1.0.0](https://github.com/blueview13/powerpeek/releases/latest)**
+
+The DMG contains the PowerPeek application. Open the DMG and drag PowerPeek to your Applications folder.
+
+### Homebrew Cask
+
+PowerPeek can also be installed using Homebrew.
+
+If you already have Homebrew installed, run:
+
+```bash
+brew install --cask blueview13/powerpeek/powerpeek
+```
+
+You can also install it manually with:
+
+```bash
+brew tap blueview13/powerpeek
+brew trust blueview13/powerpeek
+brew install --cask powerpeek
+```
+
+## Gatekeeper / Security Warning
+
+PowerPeek is currently distributed independently and is not signed and notarised by Apple.
+
+As a result, macOS may display a security warning the first time you open PowerPeek.
+
+If macOS prevents PowerPeek from opening:
+
+1. Try opening PowerPeek normally.
+2. Open System Settings.
+3. Select Privacy & Security.
+4. Scroll down to the Security section.
+5. You may see a message stating that PowerPeek was blocked.
+6. Click Open Anyway.
+7. Confirm that you want to open PowerPeek.
+
+This is a consequence of the current distribution method and does not mean that PowerPeek contains malware.
+
 ## Requirements
 
-- macOS 13 or later
-- Swift 5.9 or later
-- Xcode 15 or later for the full Xcode workflow
-
-The current machine has Apple Command Line Tools but not the full Xcode application, so `xcodebuild` and code signing cannot be run until Xcode and an Apple Developer certificate are installed.
-
-## Build and run
-
-```sh
-swift build
-swift run PowerPeek
-```
-
-For a distributable application bundle:
-
-```sh
-./Scripts/build-app.sh
-```
-
-The resulting app is written to `build/PowerPeek.app`, and the DMG is written to `build/PowerPeek.dmg`.
-
-## Release workflow
-
-1. Install Xcode from the Mac App Store.
-2. Open this package in Xcode.
-3. Configure a unique bundle identifier and signing team.
-4. Add a Developer ID Application certificate.
-5. Archive and sign the Release build.
-6. Notarise the application with Apple's `notarytool`.
-7. Create and sign a DMG using `Scripts/build-dmg.sh`.
-8. Notarise and staple the DMG before distribution.
-
-## Notes
-
-The initial implementation refreshes periodically and when the Mac wakes. The menu bar item displays both the icon and percentage by default. The app bundle includes a PowerPeek icon suitable for the DMG and Applications folder.
+- macOS
+- A Mac with a supported battery
+- PowerPeek 0.1.0
