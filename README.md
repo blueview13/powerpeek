@@ -28,7 +28,7 @@ PowerPeek gives you a clearer view of your battery level, making it easier to se
 
 Download the latest PowerPeek DMG directly from the GitHub Releases page:
 
-**[Download PowerPeek 0.1.0](https://github.com/blueview13/powerpeek/releases/latest)**
+**[Download PowerPeek1.0.0](https://github.com/blueview13/powerpeek/releases/latest)**
 
 The DMG contains the PowerPeek application. Open the DMG and drag PowerPeek to your Applications folder.
 
